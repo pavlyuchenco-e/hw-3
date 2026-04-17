@@ -10,6 +10,7 @@ import androidx.navigation.navArgument
 import com.example.hw3.ui.ShowViewModel
 import com.example.hw3.ui.screens.ShowDetailScreen
 import com.example.hw3.ui.screens.ShowListScreen
+import androidx.compose.runtime.LaunchedEffect
 
 @Composable
 fun ShowApp() {
@@ -22,6 +23,7 @@ fun ShowApp() {
     ) {
         composable("list") {
             ShowListScreen(
+                searchQuery = showViewModel.searchQuery,
                 uiState = showViewModel.uiState,
                 onSearchChange = showViewModel::onSearchQueryChange,
                 onShowClick = { show ->
@@ -34,15 +36,15 @@ fun ShowApp() {
             arguments = listOf(navArgument("showId") { type = NavType.IntType })
         ) { backStackEntry ->
             val showId = backStackEntry.arguments?.getInt("showId") ?: return@composable
-            val show = showViewModel.getShowById(showId)
-            if (show != null) {
-                ShowDetailScreen(
-                    show = show,
-                    onBackPressed = { navController.popBackStack() }
-                )
-            } else {
-                navController.popBackStack()
+            val detailState = showViewModel.detailUiState   // без by
+            LaunchedEffect(showId) {
+                showViewModel.loadShowById(showId)
             }
+            ShowDetailScreen(
+                uiState = detailState,
+                onBackPressed = { navController.popBackStack() },
+                onRetry = { showViewModel.loadShowById(showId) }
+            )
         }
     }
 }

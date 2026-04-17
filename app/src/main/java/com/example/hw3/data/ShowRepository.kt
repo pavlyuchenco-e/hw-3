@@ -10,6 +10,11 @@ import kotlinx.coroutines.withContext
 class ShowRepository(private val api: ShowsApi = NetworkModule.api) {
     suspend fun searchShows(query: String): List<Show> = withContext(Dispatchers.IO) {
         val response = api.searchShows(query)
-        response.mapNotNull { it.show.toDomain() }
+        response.map { it.show.toDomain() }  // mapNotNull -> map
+    }
+
+    suspend fun getShowById(id: Int): Show = withContext(Dispatchers.IO) {
+        val dto = api.getShowById(id)
+        dto.toDomain()
     }
 }

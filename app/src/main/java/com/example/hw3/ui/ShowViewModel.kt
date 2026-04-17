@@ -12,75 +12,83 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
-data class ShowListUiState(
-    val searchQuery: String = "",
-    val showList: List<Show> = emptyList(),
+sealed class ShowListUiState {
+    object Loading : ShowListUiState()
+    data class Success(val shows: List<Show>, val searchQuery: String) : ShowListUiState()
+    data class Error(val message: String, val searchQuery: String) : ShowListUiState()
+    object EmptyQuery : ShowListUiState()
+    object NoResults : ShowListUiState()
+}
+
+data class ShowDetailUiState(
     val isLoading: Boolean = false,
-    val errorMessage: String? = null,
-    val hasSearched: Boolean = false,
+    val show: Show? = null,
+    val error: String? = null
 )
 
 class ShowViewModel(
     private val repository: ShowRepository = ShowRepository()
 ) : ViewModel() {
+    var searchQuery by mutableStateOf("")
+        private set
 
-    var uiState by mutableStateOf(ShowListUiState())
+    var uiState by mutableStateOf<ShowListUiState>(ShowListUiState.EmptyQuery)
+        private set
+
+    var detailUiState by mutableStateOf(ShowDetailUiState())
         private set
 
     private var searchJob: Job? = null
 
     fun onSearchQueryChange(newValue: String) {
-        uiState = uiState.copy(
-            searchQuery = newValue,
-            errorMessage = null
-        )
-
-        searchJob?.cancel()
-
+        searchQuery = newValue
         val query = newValue.trim()
 
         if (query.isBlank()) {
-            uiState = uiState.copy(
-                showList = emptyList(),
-                isLoading = false,
-                errorMessage = null,
-                hasSearched = false
-            )
+            uiState = ShowListUiState.EmptyQuery
+            searchJob?.cancel()
             return
         }
 
+        searchJob?.cancel()
         searchJob = viewModelScope.launch {
             delay(500)
 
-            uiState = uiState.copy(
-                isLoading = true,
-                errorMessage = null
-            )
+            uiState = ShowListUiState.Loading
 
             try {
                 val result = repository.searchShows(query)
 
-                if (query != uiState.searchQuery.trim()) return@launch
+                if (query != searchQuery.trim()) return@launch
 
-                uiState = uiState.copy(
-                    showList = result,
-                    isLoading = false,
-                    errorMessage = null,
-                    hasSearched = true
-                )
+                uiState = if (result.isEmpty()) {
+                    ShowListUiState.NoResults
+                } else {
+                    ShowListUiState.Success(shows = result, searchQuery = query)
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                e.printStackTrace()
-                uiState = uiState.copy(
-                    isLoading = false,
-                    errorMessage = "Ошибка загрузки: ${e.message}",
-                    hasSearched = true
+                if (query != searchQuery.trim()) return@launch
+                uiState = ShowListUiState.Error(
+                    message = e.message ?: "Ошибка загрузки",
+                    searchQuery = query
                 )
             }
         }
     }
-    fun getShowById(id: Int): Show? {
-        return uiState.showList.find { it.id == id }
+
+    fun loadShowById(showId: Int) {
+        viewModelScope.launch {
+            detailUiState = ShowDetailUiState(isLoading = true)
+            try {
+                val show = repository.getShowById(showId)
+                detailUiState = ShowDetailUiState(show = show)
+            } catch (e: Exception) {
+                detailUiState = ShowDetailUiState(
+                    error = e.message ?: "Ошибка загрузки"
+                )
+            }
+        }
     }
 }
