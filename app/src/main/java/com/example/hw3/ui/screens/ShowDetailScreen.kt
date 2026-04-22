@@ -18,6 +18,11 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.hw3.model.Show
 import com.example.hw3.ui.ShowDetailUiState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,8 +36,10 @@ fun ShowDetailScreen(
             TopAppBar(
                 title = {
                     Text(
-                        if (uiState.show != null) uiState.show.name
-                        else "Детали"
+                        when (uiState) {
+                            is ShowDetailUiState.Success -> uiState.show.name
+                            else -> "Детали"
+                        }
                     )
                 },
                 navigationIcon = {
@@ -49,24 +56,21 @@ fun ShowDetailScreen(
                 .padding(innerPadding),
             contentAlignment = Alignment.Center
         ) {
-            when {
-                uiState.isLoading -> {
+            when (uiState) {
+                ShowDetailUiState.Loading -> {
                     CircularProgressIndicator()
                 }
-                uiState.error != null -> {
+                is ShowDetailUiState.Error -> {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Ошибка: ${uiState.error}")
+                        Text("Ошибка: ${uiState.message}")
                         Spacer(modifier = Modifier.height(8.dp))
                         Button(onClick = onRetry) {
                             Text("Повторить")
                         }
                     }
                 }
-                uiState.show != null -> {
+                is ShowDetailUiState.Success -> {
                     ShowDetailContent(show = uiState.show)
-                }
-                else -> {
-                    Text("Нет данных")
                 }
             }
         }
@@ -81,21 +85,37 @@ private fun ShowDetailContent(show: Show) {
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        Row {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
             AsyncImage(
                 model = show.imageUrl,
                 contentDescription = show.name,
-                modifier = Modifier.size(150.dp, 220.dp)
+                modifier = Modifier
+                    .width(120.dp)
+                    .height(180.dp)
+                    .clip(RoundedCornerShape(8.dp))
             )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = show.name,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
                 Text("Language: ${show.language}")
                 Text("Genres: ${show.genres.joinToString(", ")}")
-                Text("Rating: ${show.rating ?: "N/A"}")
+                Text("Rating: ${show.rating?.toString() ?: "N/A"}")
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
         Text("Summary", fontWeight = FontWeight.Bold)
-        Text(show.summary ?: "No summary available")
+        Text(
+            text = show.summary ?: "No summary available",
+            modifier = Modifier.padding(top = 4.dp)
+        )
     }
 }

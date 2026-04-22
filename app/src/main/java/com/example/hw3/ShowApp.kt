@@ -7,6 +7,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.compose.runtime.getValue
 import com.example.hw3.ui.ShowViewModel
 import com.example.hw3.ui.screens.ShowDetailScreen
 import com.example.hw3.ui.screens.ShowListScreen
@@ -36,15 +37,18 @@ fun ShowApp() {
             arguments = listOf(navArgument("showId") { type = NavType.IntType })
         ) { backStackEntry ->
             val showId = backStackEntry.arguments?.getInt("showId") ?: return@composable
-            val detailState = showViewModel.detailUiState   // без by
             LaunchedEffect(showId) {
+                showViewModel.resetDetailState()
                 showViewModel.loadShowById(showId)
             }
+
+            val detailState by showViewModel.detailUiState
             ShowDetailScreen(
                 uiState = detailState,
                 onBackPressed = { navController.popBackStack() },
                 onRetry = { showViewModel.loadShowById(showId) }
             )
+
         }
     }
 }

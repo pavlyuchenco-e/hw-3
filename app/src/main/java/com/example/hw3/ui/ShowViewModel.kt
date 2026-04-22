@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.hw3.data.ShowRepository
+import androidx.compose.runtime.State
 import com.example.hw3.model.Show
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -20,11 +21,11 @@ sealed class ShowListUiState {
     object NoResults : ShowListUiState()
 }
 
-data class ShowDetailUiState(
-    val isLoading: Boolean = false,
-    val show: Show? = null,
-    val error: String? = null
-)
+sealed class ShowDetailUiState {
+    object Loading : ShowDetailUiState()
+    data class Success(val show: Show) : ShowDetailUiState()
+    data class Error(val message: String) : ShowDetailUiState()
+}
 
 class ShowViewModel(
     private val repository: ShowRepository = ShowRepository()
@@ -33,9 +34,6 @@ class ShowViewModel(
         private set
 
     var uiState by mutableStateOf<ShowListUiState>(ShowListUiState.EmptyQuery)
-        private set
-
-    var detailUiState by mutableStateOf(ShowDetailUiState())
         private set
 
     private var searchJob: Job? = null
@@ -78,16 +76,32 @@ class ShowViewModel(
         }
     }
 
+    private val _detailUiState = mutableStateOf<ShowDetailUiState>(ShowDetailUiState.Loading)
+    val detailUiState: State<ShowDetailUiState> = _detailUiState
+
+    private var detailJob: Job? = null
+    private var expectedShowId: Int? = null
+
+    fun resetDetailState() {
+        _detailUiState.value = ShowDetailUiState.Loading
+        expectedShowId = null
+        detailJob?.cancel()
+    }
+
     fun loadShowById(showId: Int) {
-        viewModelScope.launch {
-            detailUiState = ShowDetailUiState(isLoading = true)
+        expectedShowId = showId
+        detailJob?.cancel()
+        detailJob = viewModelScope.launch {
+            _detailUiState.value = ShowDetailUiState.Loading
             try {
                 val show = repository.getShowById(showId)
-                detailUiState = ShowDetailUiState(show = show)
+                if (expectedShowId != showId) return@launch
+                _detailUiState.value = ShowDetailUiState.Success(show = show)
+            } catch (e: CancellationException) {
+                // ignore
             } catch (e: Exception) {
-                detailUiState = ShowDetailUiState(
-                    error = e.message ?: "Ошибка загрузки"
-                )
+                if (expectedShowId != showId) return@launch
+                _detailUiState.value = ShowDetailUiState.Error(message = e.message ?: "Ошибка загрузки")
             }
         }
     }
