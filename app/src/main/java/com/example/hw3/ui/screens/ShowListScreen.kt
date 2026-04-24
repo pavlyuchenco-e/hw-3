@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import com.example.hw3.model.Show
 import com.example.hw3.ui.ShowListUiState
 import com.example.hw3.ui.widgets.ShowCard
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,10 +35,20 @@ fun ShowListScreen(
     searchQuery: String,
     uiState: ShowListUiState,
     onSearchChange: (String) -> Unit,
-    onShowClick: (Show) -> Unit
+    onShowClick: (Show) -> Unit,
+    onNavigateToFavourites: () -> Unit,
 ) {
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Поиск сериалов") }) }
+        topBar = {
+            TopAppBar(
+                title = { Text("Поиск сериалов") },
+                actions = {
+                    IconButton(onClick = onNavigateToFavourites) {
+                        Icon(Icons.Default.Favorite, contentDescription = "Избранное")
+                    }
+                }
+            )
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -61,7 +75,10 @@ fun ShowListScreen(
                 is ShowListUiState.Success -> {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(uiState.shows, key = { it.id }) { show ->
-                            ShowCard(show = show, onClick = { onShowClick(show) })
+                            ShowCard(
+                                show = show,
+                                onClick = { onShowClick(show) }
+                            )
                         }
                     }
                 }

@@ -7,5 +7,6 @@ data class Show(
     val genres: List<String>,
     val rating: Double?,
     val imageUrl: String?,
-    val summary: String?
+    val summary: String?,
+    val isFavourite: Boolean = false,
 )

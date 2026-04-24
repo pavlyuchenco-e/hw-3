@@ -9,27 +9,27 @@ data class SearchResponse(
 
 data class ShowDto(
     val id: Int,
-    val name: String,
-    val language: String?,
-    val genres: List<String>?,
-    val rating: RatingDto?,
-    val image: ImageDto?,
-    val summary: String?
+    val name: String? = null,
+    val language: String? = null,
+    val genres: List<String>? = null,
+    val rating: RatingDto? = null,
+    val image: ImageDto? = null,
+    val summary: String? = null
 )
 
 data class RatingDto(
-    val average: Double?
+    val average: Double? = null
 )
 
 data class ImageDto(
-    val medium: String?,
-    val original: String?
+    val medium: String? = null,
+    val original: String? = null
 )
 
 fun ShowDto.toDomain(): Show {
     return Show(
         id = id,
-        name = name,
+        name = name ?: "Unknown",
         language = language ?: "Unknown",
         genres = genres ?: emptyList(),
         rating = rating?.average,

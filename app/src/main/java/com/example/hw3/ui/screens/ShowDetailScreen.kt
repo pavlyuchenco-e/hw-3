@@ -22,6 +22,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.Favorite
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -29,7 +31,8 @@ import androidx.compose.ui.unit.sp
 fun ShowDetailScreen(
     uiState: ShowDetailUiState,
     onBackPressed: () -> Unit,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    onToggleFavourite: (Show) -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -45,6 +48,16 @@ fun ShowDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBackPressed) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (uiState is ShowDetailUiState.Success) {
+                        IconButton(onClick = { onToggleFavourite(uiState.show) }) {
+                            Icon(
+                                imageVector = if (uiState.show.isFavourite) Icons.Filled.Favorite else Icons.Outlined.Favorite,
+                                contentDescription = "Избранное"
+                            )
+                        }
                     }
                 }
             )
