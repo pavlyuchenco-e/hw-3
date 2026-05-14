@@ -59,7 +59,8 @@ fun ShowListScreen(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = onSearchChange,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth(),
                 label = { Text("Название сериала") },
                 singleLine = true,
             )
