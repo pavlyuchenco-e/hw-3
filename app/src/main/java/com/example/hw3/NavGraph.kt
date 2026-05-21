@@ -18,20 +18,21 @@ import com.example.hw3.model.Show
 
 @Composable
 fun NavGraph(
-    startDestination: String = "list"
+    startDestination: String = "list",
+    viewModel: ShowViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
-    val showViewModel: ShowViewModel = hiltViewModel<ShowViewModel>()
 
     NavHost(
         navController = navController,
         startDestination = startDestination
     ) {
         composable("list") {
+            val uiState by viewModel.uiState.collectAsState()
             ShowListScreen(
-                searchQuery = showViewModel.searchQuery,
-                uiState = showViewModel.uiState,
-                onSearchChange = showViewModel::onSearchQueryChange,
+                searchQuery = viewModel.searchQuery,
+                uiState = uiState,
+                onSearchChange = viewModel::onSearchQueryChange,
                 onShowClick = { show: Show ->
                     navController.navigate("detail/${show.id}")
                 },
@@ -41,16 +42,17 @@ fun NavGraph(
             )
         }
         composable("favourites") {
-            val favouritesState by showViewModel.favouritesUiState.collectAsState()
+            val favouritesState by viewModel.favouritesUiState.collectAsState()
             LaunchedEffect(Unit) {
-                showViewModel.loadFavourites()
+                viewModel.loadFavourites()
             }
             FavouritesScreen(
                 uiState = favouritesState,
                 onShowClick = { showId: Int ->
                     navController.navigate("detail/$showId")
                 },
-                onBackPressed = { navController.popBackStack() }
+                onBackPressed = { navController.popBackStack() },
+                onRetry = { viewModel.loadFavourites() }
             )
         }
 
@@ -60,16 +62,16 @@ fun NavGraph(
         ) { backStackEntry ->
             val showId = backStackEntry.arguments?.getInt("showId") ?: return@composable
             LaunchedEffect(showId) {
-                showViewModel.resetDetailState()
-                showViewModel.loadShowById(showId)
+                viewModel.resetDetailState()
+                viewModel.loadShowById(showId)
             }
-            val detailState by showViewModel.detailUiState
+            val detailState by viewModel.detailUiState
             ShowDetailScreen(
                 uiState = detailState,
                 onBackPressed = { navController.popBackStack() },
-                onRetry = { showViewModel.loadShowById(showId) },
+                onRetry = { viewModel.loadShowById(showId) },
                 onToggleFavourite = { show ->
-                    showViewModel.toggleFavourite(show)
+                    viewModel.toggleFavourite(show)
                 }
             )
         }

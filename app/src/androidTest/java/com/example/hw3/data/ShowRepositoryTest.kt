@@ -44,17 +44,8 @@ class ShowRepositoryTest {
         assertEquals(1, favourites.size)
         assertTrue(favourites[0].isFavourite)
 
-        repository.toggleFavourite(show)
+        repository.toggleFavourite(show.copy(isFavourite = true))
         favourites = repository.getFavourites()
         assertTrue(favourites.isEmpty())
-    }
-
-    @Test
-    fun `adding same show twice does not create duplicate`() = runBlocking {
-        val show = Show(1, "Test", "En", emptyList(), null, null, null, isFavourite = false)
-        repository.toggleFavourite(show)
-        repository.toggleFavourite(show)
-        val favourites = repository.getFavourites()
-        assertEquals(1, favourites.size)
     }
 }

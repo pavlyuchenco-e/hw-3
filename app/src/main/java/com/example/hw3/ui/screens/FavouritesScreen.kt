@@ -20,6 +20,7 @@ fun FavouritesScreen(
     uiState: FavouritesUiState,
     onShowClick: (Int) -> Unit,
     onBackPressed: () -> Unit,
+    onRetry: () -> Unit,
 ) {
     Scaffold(
         topBar = { TopAppBar(
@@ -61,7 +62,7 @@ fun FavouritesScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Ошибка: ${uiState.message}")
                         Spacer(modifier = Modifier.height(8.dp))
-                        Button(onClick = { }) {
+                        Button(onClick = { onRetry() }) {
                             Text("Повторить")
                         }
                     }

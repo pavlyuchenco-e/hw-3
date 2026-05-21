@@ -1,61 +1,79 @@
 package com.example.hw3
 
-import androidx.compose.ui.test.*
+import android.content.Context
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.hw3.data.ShowRepository
-import com.example.hw3.model.Show
+import com.example.hw3.data.local.ShowDatabase
+import com.example.hw3.data.remote.FakeShowsApi
+import com.example.hw3.ui.ShowListUiState
 import com.example.hw3.ui.ShowViewModel
-import com.example.hw3.ui.screens.ShowListScreen
-import io.mockk.coEvery
-import kotlinx.coroutines.test.advanceUntilIdle
-import io.mockk.mockk
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.*
+import org.junit.After
+import org.junit.Assert.*
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.IOException
+import androidx.compose.ui.test.*
 
 @RunWith(AndroidJUnit4::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 class RetryIntegrationTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    @Test
-    fun `error then retry shows success using mockk`() = runTest {
-        val mockRepository = mockk<ShowRepository>(relaxed = true)
-        val viewModel = ShowViewModel(mockRepository)
+    private lateinit var database: ShowDatabase
+    private lateinit var fakeApi: FakeShowsApi
+    private lateinit var repository: ShowRepository
+    private lateinit var viewModel: ShowViewModel
 
-        val successShows = listOf(Show(1, "Success Show", "English", emptyList(), 8.5, null, null))
-        coEvery { mockRepository.searchShows("Query") } throws IOException("Network error") andThen successShows
+    @Before
+    fun setup() {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        database = Room.inMemoryDatabaseBuilder(context, ShowDatabase::class.java)
+            .allowMainThreadQueries()
+            .build()
+        fakeApi = FakeShowsApi()
+        repository = ShowRepository(fakeApi, database.showDao())
+        viewModel = ShowViewModel(repository)
+    }
+
+    @After
+    fun teardown() {
+        database.close()
+        Dispatchers.resetMain()
+    }
+
+    @Test
+    fun `retry after error works with fake api room and navgraph`() = runTest {
+        composeTestRule.mainClock.autoAdvance = true
+        fakeApi.setShouldFail(true)
 
         composeTestRule.setContent {
-            ShowListScreen(
-                searchQuery = viewModel.searchQuery,
-                uiState = viewModel.uiState,
-                onSearchChange = viewModel::onSearchQueryChange,
-                onShowClick = {},
-                onNavigateToFavourites = {}
-            )
+            NavGraph(startDestination = "list", viewModel = viewModel)
         }
 
         composeTestRule.onNodeWithText("Название сериала").performTextInput("Query")
-        composeTestRule.waitForIdle()
+        advanceTimeBy(500)
         advanceUntilIdle()
 
-        composeTestRule.waitUntil(timeoutMillis = 5000) {
-            composeTestRule.onAllNodesWithText("Повторить").fetchSemanticsNodes().isNotEmpty()
-        }
+        assertTrue(viewModel.uiState.value is ShowListUiState.Error)
+
+        fakeApi.setShouldFail(false)
 
         composeTestRule.onNodeWithText("Повторить").performClick()
-        composeTestRule.waitForIdle()
+        advanceTimeBy(500)
         advanceUntilIdle()
 
-        composeTestRule.waitUntil(timeoutMillis = 5000) {
-            composeTestRule.onAllNodesWithText("Success Show").fetchSemanticsNodes().isNotEmpty()
-        }
-
-        composeTestRule.onNodeWithText("Success Show").assertIsDisplayed()
+        val state = viewModel.uiState.value
+        assertTrue(state is ShowListUiState.Success)
+        assertEquals("Success Show", (state as ShowListUiState.Success).shows[0].name)
     }
 }
