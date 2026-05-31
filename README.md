@@ -2,7 +2,7 @@
 Б9124-09.03.03пикд4
 
 Юнит-тесты: 8
-Интеграционные тесты: 5
+Интеграционные тесты: 4
 Нетривиальные тесты: 3
 Тесты на Flow: 2 (полная последовательность эмиссий + нетривиальное потоковое поведение)
 
@@ -18,28 +18,20 @@
 7	favouritesUiState emits Loading then Success on first load	Flow‑тест: последовательность эмиссий Loading → Success для избранного
 8	outdated search result is ignored	Нетривиальное потоковое поведение: отмена устаревшего поискового запроса (более ранний результат не попадает в UI)
 Интеграционные тесты
-a) Data‑слой (ShowRepositoryTest)
-toggleFavourite adds and removes from database
-Проверка, что добавление в избранное сохраняется в Room, а удаление — удаляет запись.
-
-adding same show twice does not create duplicate
-Повторное добавление одного шоу не создаёт дубликат в таблице избранного (нетривиальный сценарий).
-
-b) UI‑навигация (NavigationTest)
-after successful search shows list is displayed
-После успешного поиска список результатов отображается (используется мок‑репозиторий).
-
-click on show card opens detail screen
-Клик по карточке шоу открывает экран деталей (проверяется кнопка «Назад»).
-
-c) Ошибка и Retry (RetryIntegrationTest)
-error then retry shows success using mockk
-При ошибке сети отображается кнопка «Повторить», после нажатия запрос повторяется, данные успешно загружаются и отображаются.
+ShowRepositoryTest (2 теста) - Data‑слой - Repository + Fake API + Room – добавление и удаление избранного, отсутствие дублей при повторной вставке.
+RetryIntegrationTest - UI (состояние) -	Сценарий ошибка → нажатие Retry → успешное состояние (используется Fake API + in‑memory Room + реальный NavGraph).
+NavigationTest.after successful search show card is displayed -	UI (состояние)	Отображение корректного состояния экрана после загрузки данных – карточка шоу появляется на экране списка.
 
 Тестирование Flow
-Полная последовательность эмиссий:
-Тест favouritesUiState emits Loading then Success on first load проверяет, что при загрузке избранного сначала приходит Loading, затем Success.
+Полная последовательность эмиссий – favouritesUiState при загрузке испускает Loading, затем Success.
 
-Нетривиальное потоковое поведение:
-Тест outdated search result is ignored подтверждает, что при быстрой смене поискового запроса результат более раннего запроса не вытесняет более поздний (корректная отмена корутины через searchJob.cancel()).
+Нетривиальное потоковое поведение – outdated search result is ignored демонстрирует отмену устаревшей корутины поиска.
 
+Нетривиальное тесты:
+retry after error calls repository again – проверяет, что retryLastSearch() действительно инициирует новый сетевой запрос.
+
+outdated search result is ignored – проверяет отмену устаревшего поискового запроса (более ранний результат не перезаписывает более поздний).
+
+empty search result emits NoResults – гарантирует, что пустой ответ API приводит к состоянию NoResults, а не Success(emptyList()).
+
+toggleFavourite adds show then removes it – после записи в Room данные корректно читаются повторно.

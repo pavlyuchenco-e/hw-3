@@ -1,6 +1,7 @@
 package com.example.hw3
 
 import android.content.Context
+import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -10,19 +11,15 @@ import com.example.hw3.data.local.ShowDatabase
 import com.example.hw3.data.remote.FakeShowsApi
 import com.example.hw3.ui.ShowListUiState
 import com.example.hw3.ui.ShowViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.*
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import androidx.compose.ui.test.*
+
 
 @RunWith(AndroidJUnit4::class)
-@OptIn(ExperimentalCoroutinesApi::class)
 class RetryIntegrationTest {
 
     @get:Rule
@@ -35,7 +32,6 @@ class RetryIntegrationTest {
 
     @Before
     fun setup() {
-        Dispatchers.setMain(UnconfinedTestDispatcher())
         val context = ApplicationProvider.getApplicationContext<Context>()
         database = Room.inMemoryDatabaseBuilder(context, ShowDatabase::class.java)
             .allowMainThreadQueries()
@@ -48,32 +44,37 @@ class RetryIntegrationTest {
     @After
     fun teardown() {
         database.close()
-        Dispatchers.resetMain()
     }
 
     @Test
-    fun `retry after error works with fake api room and navgraph`() = runTest {
-        composeTestRule.mainClock.autoAdvance = true
+    fun `retry after error works with fake api room and navgraph`() {
         fakeApi.setShouldFail(true)
 
         composeTestRule.setContent {
             NavGraph(startDestination = "list", viewModel = viewModel)
         }
 
-        composeTestRule.onNodeWithText("Название сериала").performTextInput("Query")
-        advanceTimeBy(500)
-        advanceUntilIdle()
+        composeTestRule
+            .onNode(hasSetTextAction())
+            .performTextInput("Query")
 
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            viewModel.uiState.value is ShowListUiState.Error
+        }
         assertTrue(viewModel.uiState.value is ShowListUiState.Error)
 
         fakeApi.setShouldFail(false)
 
-        composeTestRule.onNodeWithText("Повторить").performClick()
-        advanceTimeBy(500)
-        advanceUntilIdle()
+        composeTestRule
+            .onNodeWithText("Повторить")
+            .performClick()
 
-        val state = viewModel.uiState.value
-        assertTrue(state is ShowListUiState.Success)
-        assertEquals("Success Show", (state as ShowListUiState.Success).shows[0].name)
+        // 6. Ждём Success
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            viewModel.uiState.value is ShowListUiState.Success
+        }
+
+        val state = viewModel.uiState.value as ShowListUiState.Success
+        assertEquals("Success Show", state.shows[0].name)
     }
 }

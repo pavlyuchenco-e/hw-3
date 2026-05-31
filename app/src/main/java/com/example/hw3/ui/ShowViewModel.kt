@@ -1,24 +1,22 @@
 package com.example.hw3.ui
 
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.hw3.data.ShowRepository
-import androidx.compose.runtime.State
+import com.example.hw3.data.IShowRepository
 import com.example.hw3.model.Show
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 import javax.inject.Inject
-
 
 sealed class ShowListUiState {
     object Loading : ShowListUiState()
@@ -42,25 +40,27 @@ sealed class FavouritesUiState {
 
 @HiltViewModel
 class ShowViewModel @Inject constructor(
-    private val repository: ShowRepository
+    private val repository: IShowRepository
 ) : ViewModel() {
+
     var searchQuery by mutableStateOf("")
         private set
 
     private val _uiState = MutableStateFlow<ShowListUiState>(ShowListUiState.EmptyQuery)
     val uiState: StateFlow<ShowListUiState> = _uiState.asStateFlow()
+
     private val _detailUiState = mutableStateOf<ShowDetailUiState>(ShowDetailUiState.Loading)
     val detailUiState: State<ShowDetailUiState> = _detailUiState
 
     private val _favouritesUiState = MutableStateFlow<FavouritesUiState>(FavouritesUiState.Loading)
     val favouritesUiState: StateFlow<FavouritesUiState> = _favouritesUiState.asStateFlow()
+
     private var searchJob: Job? = null
     private var detailJob: Job? = null
     private var expectedShowId: Int? = null
     private var favouritesJob: Job? = null
     private var lastSearchQuery: String = ""
     private var favouritesRequestId = 0
-
 
     fun loadFavourites() {
         val requestId = ++favouritesRequestId
@@ -73,9 +73,10 @@ class ShowViewModel @Inject constructor(
                 _favouritesUiState.value = FavouritesUiState.Success(favourites)
             } catch (e: CancellationException) {
                 throw e
-            }catch (e: Exception) {
+            } catch (e: Exception) {
                 if (requestId != favouritesRequestId) return@launch
-                _favouritesUiState.value = FavouritesUiState.Error(e.message ?: "Ошибка загрузки избранного")
+                _favouritesUiState.value =
+                    FavouritesUiState.Error(e.message ?: "Ошибка загрузки избранного")
             }
         }
     }
@@ -84,7 +85,6 @@ class ShowViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 repository.toggleFavourite(show)
-
                 if (_detailUiState.value is ShowDetailUiState.Success) {
                     val current = (_detailUiState.value as ShowDetailUiState.Success).show
                     if (current.id == show.id) {
@@ -93,7 +93,6 @@ class ShowViewModel @Inject constructor(
                         )
                     }
                 }
-
                 if (_uiState.value is ShowListUiState.Success) {
                     val currentState = _uiState.value as ShowListUiState.Success
                     val updatedShows = currentState.shows.map {
@@ -105,14 +104,17 @@ class ShowViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+
             }
         }
     }
+
     fun retryLastSearch() {
         if (lastSearchQuery.isNotBlank()) {
             onSearchQueryChange(lastSearchQuery)
         }
     }
+
     fun onSearchQueryChange(newValue: String) {
         searchQuery = newValue
         val query = newValue.trim()
@@ -127,14 +129,10 @@ class ShowViewModel @Inject constructor(
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             delay(500)
-
             _uiState.value = ShowListUiState.Loading
-
             try {
                 val result = repository.searchShows(query)
-
                 if (query != searchQuery.trim()) return@launch
-
                 _uiState.value = if (result.isEmpty()) {
                     ShowListUiState.NoResults
                 } else {
@@ -152,8 +150,6 @@ class ShowViewModel @Inject constructor(
         }
     }
 
-
-
     fun loadShowById(showId: Int) {
         expectedShowId = showId
         detailJob?.cancel()
@@ -164,10 +160,11 @@ class ShowViewModel @Inject constructor(
                 if (expectedShowId != showId) return@launch
                 _detailUiState.value = ShowDetailUiState.Success(show = show)
             } catch (e: CancellationException) {
-                // ignore
+
             } catch (e: Exception) {
                 if (expectedShowId != showId) return@launch
-                _detailUiState.value = ShowDetailUiState.Error(message = e.message ?: "Ошибка загрузки")
+                _detailUiState.value =
+                    ShowDetailUiState.Error(message = e.message ?: "Ошибка загрузки")
             }
         }
     }

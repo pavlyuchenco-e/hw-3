@@ -4,10 +4,10 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.example.hw3.data.local.FavouriteShowEntity
 import com.example.hw3.data.local.ShowDatabase
-import com.example.hw3.data.remote.ShowsApi
+import com.example.hw3.data.remote.FakeShowsApi
 import com.example.hw3.model.Show
-import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.*
@@ -20,7 +20,7 @@ class ShowRepositoryTest {
 
     private lateinit var database: ShowDatabase
     private lateinit var repository: ShowRepository
-    private val api = mockk<ShowsApi>(relaxed = true)
+    private lateinit var fakeApi: FakeShowsApi
 
     @Before
     fun setup() {
@@ -28,7 +28,8 @@ class ShowRepositoryTest {
         database = Room.inMemoryDatabaseBuilder(context, ShowDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        repository = ShowRepository(api, database.showDao())
+        fakeApi = FakeShowsApi()
+        repository = ShowRepository(fakeApi, database.showDao())
     }
 
     @After
@@ -37,8 +38,9 @@ class ShowRepositoryTest {
     }
 
     @Test
-    fun `toggleFavourite adds and removes from database`() = runBlocking {
+    fun `toggleFavourite adds show then removes it`() = runBlocking {
         val show = Show(1, "Test", "En", emptyList(), null, null, null, isFavourite = false)
+
         repository.toggleFavourite(show)
         var favourites = repository.getFavourites()
         assertEquals(1, favourites.size)
@@ -46,6 +48,24 @@ class ShowRepositoryTest {
 
         repository.toggleFavourite(show.copy(isFavourite = true))
         favourites = repository.getFavourites()
-        assertTrue(favourites.isEmpty())
+        assertTrue("После удаления список должен быть пуст", favourites.isEmpty())
+    }
+
+    @Test
+    fun `adding same show twice via upsert does not create duplicate`() = runBlocking {
+        val entity = FavouriteShowEntity(
+            id = 1, name = "Test", language = "En",
+            genres = emptyList(), rating = null, imageUrl = null, summary = null
+        )
+
+        database.showDao().upsert(entity)
+        database.showDao().upsert(entity)
+
+        val favourites = repository.getFavourites()
+        assertEquals(
+            "В базе должна быть ровно одна запись, даже после двух upsert",
+            1,
+            favourites.size
+        )
     }
 }

@@ -10,7 +10,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.hw3.model.Show
 import com.example.hw3.ui.FavouritesUiState
 import com.example.hw3.ui.widgets.ShowCard
 
@@ -23,13 +22,16 @@ fun FavouritesScreen(
     onRetry: () -> Unit,
 ) {
     Scaffold(
-        topBar = { TopAppBar(
-            title = { Text("Избранное") },
-            navigationIcon = {
-                IconButton(onClick = onBackPressed) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+        topBar = {
+            TopAppBar(
+                title = { Text("Избранное") },
+                navigationIcon = {
+                    IconButton(onClick = onBackPressed) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
                 }
-            },) }
+            )
+        }
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -62,7 +64,7 @@ fun FavouritesScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Ошибка: ${uiState.message}")
                         Spacer(modifier = Modifier.height(8.dp))
-                        Button(onClick = { onRetry() }) {
+                        Button(onClick = onRetry) {
                             Text("Повторить")
                         }
                     }

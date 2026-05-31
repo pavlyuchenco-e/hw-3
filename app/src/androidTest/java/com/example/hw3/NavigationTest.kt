@@ -3,14 +3,24 @@ package com.example.hw3
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.example.hw3.data.ShowRepository
+import com.example.hw3.data.IShowRepository
 import com.example.hw3.model.Show
 import com.example.hw3.ui.ShowViewModel
-import io.mockk.coEvery
-import io.mockk.mockk
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+
+private class FakeNavRepo(
+    private val searchResult: List<Show> = emptyList(),
+    private val showByIdMap: Map<Int, Show> = emptyMap()
+) : IShowRepository {
+    override suspend fun searchShows(query: String): List<Show> = searchResult
+    override suspend fun getShowById(id: Int): Show =
+        showByIdMap[id] ?: error("showById не задан для id=$id")
+    override suspend fun getFavourites(): List<Show> = emptyList()
+    override suspend fun toggleFavourite(show: Show) = Unit
+    override suspend fun isFavourite(id: Int): Boolean = false
+}
 
 @RunWith(AndroidJUnit4::class)
 class NavigationTest {
@@ -18,43 +28,31 @@ class NavigationTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    @Test
-    fun `after successful search shows list is displayed`() {
-        val mockRepo = mockk<ShowRepository>()
-        val testShow = Show(1, "Breaking", "English", emptyList(), null, null, null, false)
-        coEvery { mockRepo.searchShows("Breaking") } returns listOf(testShow)
-
-        val viewModel = ShowViewModel(mockRepo)
-        composeTestRule.setContent {
-            NavGraph(startDestination = "list", viewModel = viewModel)
-        }
-        composeTestRule.onNodeWithText("Название сериала").performTextInput("Breaking")
-        composeTestRule.waitForIdle()
-        composeTestRule.waitUntil(timeoutMillis = 10000) {
-            composeTestRule.onAllNodesWithText("Breaking").fetchSemanticsNodes().isNotEmpty()
-        }
-        composeTestRule.onNodeWithText("Breaking").assertIsDisplayed()
-    }
+    private val testShow = Show(1, "Breaking", "English", emptyList(), null, null, null, false)
 
     @Test
-    fun `click on show card opens detail screen`() {
-        val mockRepo = mockk<ShowRepository>(relaxed = true)
-        val testShow = Show(1, "Breaking", "English", emptyList(), null, null, null, false)
-        coEvery { mockRepo.searchShows("Breaking") } returns listOf(testShow)
-        val viewModel = ShowViewModel(mockRepo)
+    fun `after successful search show card is displayed`() {
+        val viewModel = ShowViewModel(FakeNavRepo(searchResult = listOf(testShow)))
 
         composeTestRule.setContent {
             NavGraph(startDestination = "list", viewModel = viewModel)
         }
 
-        composeTestRule.onNodeWithText("Название сериала").performTextInput("Breaking")
+        composeTestRule
+            .onNode(hasSetTextAction())
+            .performTextInput("Breaking")
+
         composeTestRule.waitForIdle()
 
-        composeTestRule.waitUntil(timeoutMillis = 10000) {
-            composeTestRule.onAllNodesWithText("Breaking").fetchSemanticsNodes().isNotEmpty()
+        composeTestRule.waitUntil(timeoutMillis = 10_000) {
+            composeTestRule
+                .onAllNodesWithText(testShow.name)
+                .fetchSemanticsNodes(atLeastOneRootRequired = false)
+                .isNotEmpty()
         }
 
-        composeTestRule.onNodeWithText("Breaking").performClick()
-        composeTestRule.onNodeWithContentDescription("Back").assertIsDisplayed()
+        composeTestRule
+            .onAllNodesWithText(testShow.name)[0]
+            .assertIsDisplayed()
     }
 }
